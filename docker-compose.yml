@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Servicio FastAPI (API principal)
+  api:
+    image: python:3.9-slim
+    container_name: iot_api
+    volumes:
+      - ./api:/app
+    working_dir: /app
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - iot-network
+    depends_on:
+      - n8n
+
+  # Servicio n8n (automatización)
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n_automation
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=usuario
+      - N8N_BASIC_AUTH_PASSWORD=contraseña
+      - TZ=America/Mexico_City
+      - N8N_DIAGNOSTICS_ENABLED=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - iot-network
+
+  # Simulador de sensores eléctricos
+  sensor:
+    image: python:3.9-slim
+    container_name: electrical_sensor
+    volumes:
+      - ./sensor:/app
+    working_dir: /app
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && python sensor.py"
+    environment:
+      - API_URL=http://api:8000/sensor-data
+      - SENSOR_ID=generator-001
+      - SAMPLING_INTERVAL=5
+    networks:
+      - iot-network
+    depends_on:
+      - api
+
+  # Controlador de sistemas eléctricos
+  controller:
+    image: python:3.9-slim
+    container_name: power_controller
+    volumes:
+      - ./controller:/app
+    working_dir: /app
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && python controller.py"
+    environment:
+      - API_URL=http://api:8000
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/power-control
+      - CONTROL_INTERVAL=10
+    networks:
+      - iot-network
+    depends_on:
+      - api
+      - n8n
+
+networks:
+  iot-network:
+    driver: bridge
+
+volumes:
+  n8n_data:
