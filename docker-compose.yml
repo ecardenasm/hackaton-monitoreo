@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-  # Servicio FastAPI (API principal)
-  api:
+  # Servicio FastAPI
+  fastapi:
     image: python:3.9-slim
     container_name: iot_api
     volumes:
-      - ./api:/app
+      - ./fastapi_app:/app
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "pip install --no-cache-dir -r requeriments.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     environment:
@@ -18,7 +18,7 @@ services:
     depends_on:
       - n8n
 
-  # Servicio n8n (automatización)
+  # Servicio n8n
   n8n:
     image: n8nio/n8n
     container_name: n8n_automation
@@ -35,39 +35,39 @@ services:
     networks:
       - iot-network
 
-  # Simulador de sensores eléctricos
+  # Simulador de sensores
   sensor:
     image: python:3.9-slim
     container_name: electrical_sensor
     volumes:
-      - ./sensor:/app
+      - ./sensor_simulator:/app
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && python sensor.py"
+    command: sh -c "pip install --no-cache-dir -r requeriments.txt && python sensor.py"
     environment:
-      - API_URL=http://api:8000/sensor-data
+      - API_URL=http://fastapi:8000/sensor-data
       - SENSOR_ID=generator-001
       - SAMPLING_INTERVAL=5
     networks:
       - iot-network
     depends_on:
-      - api
+      - fastapi
 
-  # Controlador de sistemas eléctricos
+  # Simulador de controladores
   controller:
     image: python:3.9-slim
     container_name: power_controller
     volumes:
-      - ./controller:/app
+      - ./controller_simulator:/app
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && python controller.py"
+    command: sh -c "pip install --no-cache-dir -r requeriments.txt && python controller.py"
     environment:
-      - API_URL=http://api:8000
+      - API_URL=http://fastapi:8000
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook/power-control
       - CONTROL_INTERVAL=10
     networks:
       - iot-network
     depends_on:
-      - api
+      - fastapi
       - n8n
 
 networks:
